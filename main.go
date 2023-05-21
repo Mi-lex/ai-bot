@@ -7,11 +7,15 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Mi-lex/dgpt-bot/commands_example"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	commands_example.Echo()
+
 	err := godotenv.Load(".env")
 
 	if err != nil {
@@ -20,34 +24,61 @@ func main() {
 
 	botToken := os.Getenv("DISCORD_BOT_TOKEN")
 	// Create a new Discord session using the provided bot token.
-	dg, err := discordgo.New("Bot " + botToken)
+	discordClient, err := discordgo.New("Bot " + botToken)
 	if err != nil {
 		fmt.Println("error creating Discord session,", err)
 		return
 	}
 
 	// Register the messageCreate func as a callback for MessageCreate events.
-	dg.AddHandler(messageCreate)
+	discordClient.AddHandler(messageCreate)
 
+	discordClient.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if h, ok := commands_example.CommandHandlers[i.ApplicationCommandData().Name]; ok {
+			h(s, i)
+		}
+	})
+
+	log.Println("Adding commands...")
 	// Just like the ping pong example, we only care about receiving message
 	// events in this example.
 	// dg.Identify.Intents = discordgo.IntentsGuildMessages
 
 	// Open a websocket connection to Discord and begin listening.
-	err = dg.Open()
+	err = discordClient.Open()
 	if err != nil {
 		fmt.Println("error opening connection,", err)
 		return
 	}
 
+	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands_example.Commands))
+
+	for i, commandOption := range commands_example.Commands {
+		cmd, err := discordClient.ApplicationCommandCreate(discordClient.State.User.ID, "", commandOption)
+		if err != nil {
+			log.Panicf("Cannot create '%v' command: %v", commandOption.Name, err)
+		}
+		registeredCommands[i] = cmd
+	}
+
+	defer discordClient.Close()
+
 	// Wait here until CTRL-C or other term signal is received.
 	fmt.Println("Bot is now running. Press CTRL-C to exit.")
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	<-sc
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	<-stop
 
+	log.Println("Removing commands...")
+
+	for _, registeredCommand := range registeredCommands {
+		err := discordClient.ApplicationCommandDelete(discordClient.State.User.ID, "", registeredCommand.ID)
+		if err != nil {
+			log.Panicf("Cannot delete '%v' command: %v", registeredCommand.Name, err)
+		}
+	}
 	// Cleanly close down the Discord session.
-	dg.Close()
+	log.Println("Gracefully shutting down.")
 }
 
 // This function will be called (due to AddHandler above) every time a new
@@ -56,9 +87,22 @@ func main() {
 // It is called whenever a message is created but only when it's sent through a
 // server as we did not request IntentsDirectMessages.
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	// threadMessages := s.thre
 	// Ignore all messages created by the bot itself
 	// This isn't required in this specific example but it's a good practice.
 	fmt.Print("Message created\n")
+
+	// m.Flags
+	fmt.Printf("Is thread %v \n", m.Flags)
+
+	fmt.Printf("Channel id: %v\n", m.ChannelID)
+
+	ch, _ := s.State.Channel(m.ChannelID)
+
+	fmt.Printf("Is thread %v \n", ch.IsThread())
+	// if m.Thread.IsThread() {
+	// 	fmt.Printf("Messages %v", m.Thread.Messages)
+	// }
 
 	fmt.Printf(m.Author.ID + " \n")
 	fmt.Printf(s.State.User.ID + " \n")
@@ -80,6 +124,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// We create the private channel with the user who sent the message.
 	// channel, err := s.UserChannelCreate(m.Author.ID)
 	_, err := s.ChannelMessageSend(m.ChannelID, "pong")
+
+	// m.Thread.IsThread()
+	// m.Thread.Messages
+
 	if err != nil {
 		// If an error occurred, we failed to create the channel.
 		//
