@@ -8,12 +8,15 @@ import (
 	"syscall"
 
 	"github.com/Mi-lex/dgpt-bot/commands_example"
+	"github.com/Mi-lex/dgpt-bot/config"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	config.InitEnvConfigs()
+
 	commands_example.Echo()
 
 	err := godotenv.Load(".env")
@@ -22,9 +25,8 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	botToken := os.Getenv("DISCORD_BOT_TOKEN")
 	// Create a new Discord session using the provided bot token.
-	discordClient, err := discordgo.New("Bot " + botToken)
+	discordClient, err := discordgo.New("Bot " + config.EnvConfigs.DiscordBotToken)
 	if err != nil {
 		fmt.Println("error creating Discord session,", err)
 		return
@@ -51,15 +53,15 @@ func main() {
 		return
 	}
 
-	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands_example.Commands))
+	// registeredCommands := make([]*discordgo.ApplicationCommand, len(commands_example.Commands))
 
-	for i, commandOption := range commands_example.Commands {
-		cmd, err := discordClient.ApplicationCommandCreate(discordClient.State.User.ID, "", commandOption)
-		if err != nil {
-			log.Panicf("Cannot create '%v' command: %v", commandOption.Name, err)
-		}
-		registeredCommands[i] = cmd
-	}
+	// for i, commandOption := range commands_example.Commands {
+	// 	cmd, err := discordClient.ApplicationCommandCreate(discordClient.State.User.ID, "", commandOption)
+	// 	if err != nil {
+	// 		log.Panicf("Cannot create '%v' command: %v", commandOption.Name, err)
+	// 	}
+	// 	registeredCommands[i] = cmd
+	// }
 
 	defer discordClient.Close()
 
@@ -71,14 +73,14 @@ func main() {
 
 	log.Println("Removing commands...")
 
-	for _, registeredCommand := range registeredCommands {
-		err := discordClient.ApplicationCommandDelete(discordClient.State.User.ID, "", registeredCommand.ID)
-		if err != nil {
-			log.Panicf("Cannot delete '%v' command: %v", registeredCommand.Name, err)
-		}
-	}
-	// Cleanly close down the Discord session.
-	log.Println("Gracefully shutting down.")
+	// 	for _, registeredCommand := range registeredCommands {
+	// 		err := discordClient.ApplicationCommandDelete(discordClient.State.User.ID, "", registeredCommand.ID)
+	// 		if err != nil {
+	// 			log.Panicf("Cannot delete '%v' command: %v", registeredCommand.Name, err)
+	// 		}
+	// 	}
+	// 	// Cleanly close down the Discord session.
+	// 	log.Println("Gracefully shutting down.")
 }
 
 // This function will be called (due to AddHandler above) every time a new
