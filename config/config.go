@@ -20,7 +20,6 @@ type envConfigs struct {
 	OpenApiSecretKey string `mapstructure:"OPENAI_SECRET_KEY"`
 }
 
-// Call to load the variables from env
 func loadEnvVariables() (config *envConfigs) {
 	viper.AddConfigPath(".")
 	viper.SetConfigName(".env")

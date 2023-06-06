@@ -9,10 +9,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func Echo() {
-	fmt.Println("Echo")
-}
-
 // Bot parameters
 
 var Bruh = "Bruh"
