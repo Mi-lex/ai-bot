@@ -3,6 +3,7 @@ package discord
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/Mi-lex/dgpt-bot/config"
 	"github.com/bwmarrin/discordgo"
@@ -94,6 +95,11 @@ func userMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		threadId = thread.ID
 	}
+
+	s.ChannelTyping(threadId)
+
+	// Sleep for 2 seconds to simulate a long-running task.
+	time.Sleep(2 * 1e9)
 
 	_, err = s.ChannelMessageSend(threadId, "pong")
 
