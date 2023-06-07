@@ -1,4 +1,4 @@
-package commands_example
+package discord
 
 import (
 	"errors"
@@ -8,10 +8,6 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 )
-
-// Bot parameters
-
-var Bruh = "Bruh"
 
 var (
 	integerOptionMinValue          = 1.0
@@ -517,11 +513,3 @@ var (
 		},
 	}
 )
-
-// func init() {
-// 	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-// 		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-// 			h(s, i)
-// 		}
-// 	})
-// }
