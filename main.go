@@ -9,12 +9,19 @@ import (
 
 	"github.com/Mi-lex/dgpt-bot/config"
 	"github.com/Mi-lex/dgpt-bot/discord"
+	"github.com/Mi-lex/dgpt-bot/utils"
 )
 
 func main() {
 	config.InitEnvConfigs()
 
-	err := discord.Init()
+	err := utils.SetupRedis()
+
+	if err != nil {
+		log.Fatal("error setting up Redis,", err)
+	}
+
+	err = discord.Init()
 
 	if err != nil {
 		log.Fatal("error creating Discord session,", err)
@@ -29,6 +36,4 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-stop
-
-	log.Println("Removing commands...")
 }

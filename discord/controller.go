@@ -12,7 +12,8 @@ import (
 var DController *Controller
 
 type Controller struct {
-	sessionClient *discordgo.Session
+	sessionClient      *discordgo.Session
+	registeredCommands []*discordgo.ApplicationCommand
 }
 
 func Init() error {
@@ -43,11 +44,13 @@ func Init() error {
 		return err
 	}
 
+	DController.registerCommands()
+
 	return nil
 }
 
-func (controller *Controller) RegisterCommands() {
-	registeredCommands := make([]*discordgo.ApplicationCommand, len(Commands))
+func (controller *Controller) registerCommands() {
+	controller.registeredCommands = make([]*discordgo.ApplicationCommand, len(Commands))
 
 	log.Println("Registering commands...")
 	for i, commandOption := range Commands {
@@ -55,11 +58,27 @@ func (controller *Controller) RegisterCommands() {
 		if err != nil {
 			log.Panicf("Cannot create '%v' command: %v", commandOption.Name, err)
 		}
-		registeredCommands[i] = cmd
+
+		controller.registeredCommands[i] = cmd
+	}
+}
+
+func (controller *Controller) unregisterCommands() {
+	log.Println("Removing commands...")
+
+	for _, registeredCommand := range controller.registeredCommands {
+		err := controller.sessionClient.ApplicationCommandDelete(controller.sessionClient.State.User.ID, "", registeredCommand.ID)
+		if err != nil {
+			log.Panicf("Cannot delete '%v' command: %v", registeredCommand.Name, err)
+		}
 	}
 }
 
 func (controller *Controller) Close() {
+	// Cleanly close down the Discord session.
+	log.Println("Gracefully shutting down.")
+
+	controller.unregisterCommands()
 	controller.sessionClient.Close()
 }
 

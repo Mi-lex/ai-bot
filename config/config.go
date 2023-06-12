@@ -18,6 +18,8 @@ func InitEnvConfigs() {
 type envConfigs struct {
 	DiscordBotToken  string `mapstructure:"DISCORD_BOT_TOKEN"`
 	OpenApiSecretKey string `mapstructure:"OPENAI_SECRET_KEY"`
+	RedisAddr        string `mapstructure:"REDIS_ADDR"`
+	RedisPass        string `mapstructure:"REDIS_PASS"`
 }
 
 func loadEnvVariables() (config *envConfigs) {
