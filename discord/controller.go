@@ -102,9 +102,10 @@ func (controller *Controller) messageHandler(s *discordgo.Session, m *discordgo.
 	threadId := m.ChannelID
 
 	// if its not a thread, then create one
+
 	if !ch.IsThread() {
 		thread, err := s.MessageThreadStartComplex(m.ChannelID, m.ID, &discordgo.ThreadStart{
-			Name:             "Thread",
+			Name:             m.Content[:50] + "...",
 			Invitable:        false,
 			RateLimitPerUser: 10,
 		})
