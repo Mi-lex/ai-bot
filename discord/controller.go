@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/Mi-lex/dgpt-bot/chat"
 	"github.com/Mi-lex/dgpt-bot/config"
 	"github.com/bwmarrin/discordgo"
 )
@@ -12,6 +13,7 @@ import (
 var DController *Controller
 
 type Controller struct {
+	chat               *chat.Chat
 	sessionClient      *discordgo.Session
 	registeredCommands []*discordgo.ApplicationCommand
 }
@@ -27,9 +29,10 @@ func Init() error {
 
 	DController = &Controller{
 		sessionClient: sessionClient,
+		chat:          chat.NewChat(),
 	}
 
-	DController.sessionClient.AddHandler(userMessageHandler)
+	DController.sessionClient.AddHandler(DController.messageHandler)
 
 	DController.sessionClient.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if h, ok := CommandHandlers[i.ApplicationCommandData().Name]; ok {
@@ -44,7 +47,7 @@ func Init() error {
 		return err
 	}
 
-	DController.registerCommands()
+	// DController.registerCommands()
 
 	return nil
 }
@@ -82,7 +85,7 @@ func (controller *Controller) Close() {
 	controller.sessionClient.Close()
 }
 
-func userMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
+func (controller *Controller) messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Ignore all messages created by the bot itself
 	if m.Author.ID == s.State.User.ID {
 		return
@@ -117,10 +120,24 @@ func userMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	s.ChannelTyping(threadId)
 
+	response, err := controller.chat.GetResponse(threadId, m.Author.ID, m.Content)
+
+	if err != nil {
+		fmt.Printf("Error getting response %v", err)
+
+		return
+	}
+
+	if response == "" {
+		fmt.Print("Empty response")
+
+		return
+	}
+
 	// Sleep for 2 seconds to simulate a long-running task.
 	time.Sleep(2 * 1e9)
 
-	_, err = s.ChannelMessageSend(threadId, "pong")
+	_, err = s.ChannelMessageSend(threadId, response)
 
 	if err != nil {
 		// If an error occurred, we failed to send a message to a channel

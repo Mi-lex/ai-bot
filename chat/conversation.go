@@ -2,16 +2,16 @@ package chat
 
 type Context struct {
 	// user, assistant, system
-	role    string
-	content string
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
 type Conversation struct {
-	Id          string
-	Model       string
-	Temperature float32
+	Id          string  `json:"id"`
+	Model       string  `json:"model"`
+	Temperature float32 `json:"temperature"`
 
-	contextList []Context
+	ContextList []Context `json:"contextList"`
 }
 
 func NewConversation(id string, model string, temperature float32) *Conversation {
@@ -23,9 +23,9 @@ func NewConversation(id string, model string, temperature float32) *Conversation
 }
 
 func (conversation *Conversation) addContent(role string, content string) {
-	conversation.contextList = append(conversation.contextList, Context{
-		role:    role,
-		content: content,
+	conversation.ContextList = append(conversation.ContextList, Context{
+		Role:    role,
+		Content: content,
 	})
 }
 
