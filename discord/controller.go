@@ -18,7 +18,7 @@ type Controller struct {
 	registeredCommands []*discordgo.ApplicationCommand
 }
 
-func Init() error {
+func Init(chat *chat.Chat) error {
 	sessionClient, err := discordgo.New("Bot " + config.EnvConfigs.DiscordBotToken)
 
 	if err != nil {
@@ -29,7 +29,7 @@ func Init() error {
 
 	DController = &Controller{
 		sessionClient: sessionClient,
-		chat:          chat.NewChat(),
+		chat:          chat,
 	}
 
 	DController.sessionClient.AddHandler(DController.messageHandler)

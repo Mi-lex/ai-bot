@@ -6,6 +6,7 @@ require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/nitishm/go-rejson/v4 v4.1.0
+	github.com/sashabaranov/go-openai v1.10.1
 	github.com/spf13/viper v1.16.0
 )
 

@@ -7,9 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Mi-lex/dgpt-bot/chat"
 	"github.com/Mi-lex/dgpt-bot/config"
 	"github.com/Mi-lex/dgpt-bot/discord"
 	"github.com/Mi-lex/dgpt-bot/utils"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 func main() {
@@ -21,7 +24,11 @@ func main() {
 		log.Fatal("error setting up Redis,", err)
 	}
 
-	err = discord.Init()
+	openAiClient := openai.NewClient(config.EnvConfigs.OpenApiSecretKey)
+
+	chat := chat.NewChat(openAiClient)
+
+	err = discord.Init(chat)
 
 	if err != nil {
 		log.Fatal("error creating Discord session,", err)
