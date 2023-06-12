@@ -3,7 +3,6 @@ package discord
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/Mi-lex/dgpt-bot/chat"
 	"github.com/Mi-lex/dgpt-bot/config"
@@ -85,6 +84,14 @@ func (controller *Controller) Close() {
 	controller.sessionClient.Close()
 }
 
+func createThreadTitle(messageContent string) string {
+	if len(messageContent) < 50 {
+		return messageContent
+	}
+
+	return messageContent[:50] + "..."
+}
+
 func (controller *Controller) messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Ignore all messages created by the bot itself
 	if m.Author.ID == s.State.User.ID {
@@ -105,7 +112,7 @@ func (controller *Controller) messageHandler(s *discordgo.Session, m *discordgo.
 
 	if !ch.IsThread() {
 		thread, err := s.MessageThreadStartComplex(m.ChannelID, m.ID, &discordgo.ThreadStart{
-			Name:             m.Content[:50] + "...",
+			Name:             createThreadTitle(m.Content),
 			Invitable:        false,
 			RateLimitPerUser: 10,
 		})
@@ -134,9 +141,6 @@ func (controller *Controller) messageHandler(s *discordgo.Session, m *discordgo.
 
 		return
 	}
-
-	// Sleep for 2 seconds to simulate a long-running task.
-	time.Sleep(2 * 1e9)
 
 	_, err = s.ChannelMessageSend(threadId, response)
 
