@@ -20,6 +20,8 @@ func main() {
 
 	err := utils.SetupRedis()
 
+	fmt.Printf(config.EnvConfigs.Bruh)
+
 	if err != nil {
 		log.Fatal("error setting up Redis,", err)
 	}

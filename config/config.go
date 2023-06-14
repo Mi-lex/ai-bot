@@ -20,16 +20,19 @@ type envConfigs struct {
 	OpenApiSecretKey string `mapstructure:"OPENAI_SECRET_KEY"`
 	RedisAddr        string `mapstructure:"REDIS_ADDR"`
 	RedisPass        string `mapstructure:"REDIS_PASS"`
+	Bruh             string `mapstructure:"BRUH"`
 }
 
 func loadEnvVariables() (config *envConfigs) {
+	viper.AutomaticEnv()
+
 	viper.AddConfigPath(".")
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
 
 	// Viper reads all the variables from env file and log error if any found
 	if err := viper.ReadInConfig(); err != nil {
-		log.Fatal("Error reading env file", err)
+		log.Print("Failed to load .env. Using environmental variables")
 	}
 
 	// Viper unmarshals the loaded env varialbes into the struct
