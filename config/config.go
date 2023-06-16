@@ -9,10 +9,8 @@ import (
 	"github.com/knadh/koanf/v2"
 )
 
-// Initilize this variable to access the env values
 var EnvConfigs *envConfigs
 
-// We will call this in main.go to load the env variables
 func InitEnvConfigs() {
 	EnvConfigs = loadEnvVariables()
 }
