@@ -1,4 +1,4 @@
-name: Go package
+name: Aws deployment
 
 on: workflow_dispatch
 
