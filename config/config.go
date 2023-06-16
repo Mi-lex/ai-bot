@@ -3,7 +3,10 @@ package config
 import (
 	"log"
 
-	"github.com/spf13/viper"
+	"github.com/knadh/koanf/parsers/dotenv"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 )
 
 // Initilize this variable to access the env values
@@ -14,31 +17,28 @@ func InitEnvConfigs() {
 	EnvConfigs = loadEnvVariables()
 }
 
-// struct to map env values
 type envConfigs struct {
-	DiscordBotToken  string `mapstructure:"DISCORD_BOT_TOKEN"`
-	OpenApiSecretKey string `mapstructure:"OPENAI_SECRET_KEY"`
-	RedisAddr        string `mapstructure:"REDIS_ADDR"`
-	RedisPass        string `mapstructure:"REDIS_PASS"`
-	Bruh             string `mapstructure:"BRUH"`
+	DiscordBotToken  string
+	OpenApiSecretKey string
+	RedisAddr        string
+	RedisPass        string
 }
 
 func loadEnvVariables() (config *envConfigs) {
-	viper.AutomaticEnv()
+	var k = koanf.New(".")
 
-	viper.AddConfigPath(".")
-	viper.SetConfigName(".env")
-	viper.SetConfigType("env")
-
-	// Viper reads all the variables from env file and log error if any found
-	if err := viper.ReadInConfig(); err != nil {
-		log.Print("Failed to load .env. Using environmental variables")
+	if err := k.Load(file.Provider(".env"), dotenv.Parser()); err != nil {
+		log.Printf("Error loading config: %v", err)
 	}
 
-	// Viper unmarshals the loaded env varialbes into the struct
-	if err := viper.Unmarshal(&config); err != nil {
-		log.Fatal(err)
-	}
+	k.Load(env.Provider("", ".", func(s string) string {
+		return s
+	}), nil)
 
-	return
+	return &envConfigs{
+		DiscordBotToken:  k.String("DISCORD_BOT_TOKEN"),
+		OpenApiSecretKey: k.String("OPENAI_SECRET_KEY"),
+		RedisAddr:        k.String("REDIS_ADDR"),
+		RedisPass:        k.String("REDIS_PASS"),
+	}
 }
