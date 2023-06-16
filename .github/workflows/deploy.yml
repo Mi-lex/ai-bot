@@ -1,8 +1,6 @@
 name: Go package
 
-on:
-  push:
-    branches: [master]
+on: workflow_dispatch
 
 jobs:
   build:
@@ -16,4 +14,18 @@ jobs:
           go-version: "1.18"
 
       - name: Build
-        run: go build
+        run: go build -o bin/application
+
+      - name: Zip it
+        run: zip -r go.zip bin go.mod
+
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ secrets.AWS_APPLICATION_NAME }}
+          environment_name: ${{ secrets.AWS_ENVIRONMENT_NAME } }}
+          version_label: 1.0.6
+          region: eu-central-1
+          deployment_package: go.zip
