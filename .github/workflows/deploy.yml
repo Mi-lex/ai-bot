@@ -24,8 +24,8 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          application_name: ${{ variables.AWS_APPLICATION_NAME }}
-          environment_name: ${{ variables.AWS_ENVIRONMENT_NAME }}
+          application_name: ${{ vars.AWS_APPLICATION_NAME }}
+          environment_name: ${{ vars.AWS_ENVIRONMENT_NAME }}
           version_label: 1.0.6
           region: eu-central-1
           deployment_package: go.zip
