@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/Mi-lex/dgpt-bot/utils"
 	openai "github.com/sashabaranov/go-openai"
@@ -26,6 +27,34 @@ func createDefaultConversation(id string) *Conversation {
 	return NewConversation(id, "gpt-3.5-turbo", 0.2)
 }
 
+func (chat *Chat) createChatCompletionStream(conversation *Conversation) (*openai.ChatCompletionStream, error) {
+	var messages = make([]openai.ChatCompletionMessage, len(conversation.ContextList))
+
+	for i, context := range conversation.ContextList {
+		messages[i] = openai.ChatCompletionMessage{
+			Role:    context.Role,
+			Content: context.Content,
+		}
+	}
+
+	ctx := context.Background()
+	request := openai.ChatCompletionRequest{
+		Model:    openai.GPT3Dot5Turbo,
+		Messages: messages,
+		Stream:   true,
+	}
+
+	stream, err := chat.openAiClient.CreateChatCompletionStream(ctx, request)
+
+	if err != nil {
+		log.Print("Failed to create stream chat completion: %v", err)
+
+		return nil, fmt.Errorf("Failed to create stream chat completion: %v", err)
+	}
+
+	return stream, nil
+}
+
 func (chat *Chat) createChatCompletion(conversation *Conversation) (*openai.ChatCompletionMessage, error) {
 	var messages = make([]openai.ChatCompletionMessage, len(conversation.ContextList))
 
@@ -36,18 +65,19 @@ func (chat *Chat) createChatCompletion(conversation *Conversation) (*openai.Chat
 		}
 	}
 
+	ctx := context.Background()
+	request := openai.ChatCompletionRequest{
+		Model:    openai.GPT3Dot5Turbo,
+		Messages: messages,
+	}
+
 	resp, err := chat.openAiClient.CreateChatCompletion(
-		context.Background(),
-		openai.ChatCompletionRequest{
-			Model:    openai.GPT3Dot5Turbo,
-			Messages: messages,
-		},
+		ctx,
+		request,
 	)
 
 	if err != nil {
-		fmt.Printf("Failed to create chat completion, err: %s", err)
-
-		return nil, err
+		return nil, fmt.Errorf("Failed to create chat completion: %v", err)
 	}
 
 	return &resp.Choices[0].Message, nil
@@ -57,9 +87,7 @@ func (chat *Chat) GetResponse(conversationId string, userId string, message stri
 	conversation, err := chat.store.GetConversation(conversationId)
 
 	if err != nil {
-		fmt.Printf("Failed to get conversation with id: %s, err: %s", conversationId, err)
-
-		return "", err
+		return "", fmt.Errorf("Failed to get conversation with id: %s: %v", conversationId, err)
 	}
 
 	if conversation == nil {
