@@ -2,19 +2,21 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 
 	"github.com/Mi-lex/dgpt-bot/utils"
-	openai "github.com/sashabaranov/go-openai"
+	openAiLib "github.com/sashabaranov/go-openai"
 )
 
 type Chat struct {
 	store        *Store
-	openAiClient *openai.Client
+	openAiClient *openAiLib.Client
 }
 
-func NewChat(openAiCLient *openai.Client) *Chat {
+func NewChat(openAiCLient *openAiLib.Client) *Chat {
 	return &Chat{
 		store: &Store{
 			redis: utils.RedisClient,
@@ -27,19 +29,19 @@ func createDefaultConversation(id string) *Conversation {
 	return NewConversation(id, "gpt-3.5-turbo", 0.2)
 }
 
-func (chat *Chat) createChatCompletionStream(conversation *Conversation) (*openai.ChatCompletionStream, error) {
-	var messages = make([]openai.ChatCompletionMessage, len(conversation.ContextList))
+func (chat *Chat) createChatCompletionStream(conversation *Conversation) (*openAiLib.ChatCompletionStream, error) {
+	var messages = make([]openAiLib.ChatCompletionMessage, len(conversation.ContextList))
 
 	for i, context := range conversation.ContextList {
-		messages[i] = openai.ChatCompletionMessage{
+		messages[i] = openAiLib.ChatCompletionMessage{
 			Role:    context.Role,
 			Content: context.Content,
 		}
 	}
 
 	ctx := context.Background()
-	request := openai.ChatCompletionRequest{
-		Model:    openai.GPT3Dot5Turbo,
+	request := openAiLib.ChatCompletionRequest{
+		Model:    openAiLib.GPT3Dot5Turbo,
 		Messages: messages,
 		Stream:   true,
 	}
@@ -47,7 +49,7 @@ func (chat *Chat) createChatCompletionStream(conversation *Conversation) (*opena
 	stream, err := chat.openAiClient.CreateChatCompletionStream(ctx, request)
 
 	if err != nil {
-		log.Print("Failed to create stream chat completion: %v", err)
+		log.Println("Failed to create stream chat completion:", err)
 
 		return nil, fmt.Errorf("Failed to create stream chat completion: %v", err)
 	}
@@ -55,19 +57,19 @@ func (chat *Chat) createChatCompletionStream(conversation *Conversation) (*opena
 	return stream, nil
 }
 
-func (chat *Chat) createChatCompletion(conversation *Conversation) (*openai.ChatCompletionMessage, error) {
-	var messages = make([]openai.ChatCompletionMessage, len(conversation.ContextList))
+func (chat *Chat) createChatCompletion(conversation *Conversation) (*openAiLib.ChatCompletionMessage, error) {
+	var messages = make([]openAiLib.ChatCompletionMessage, len(conversation.ContextList))
 
 	for i, context := range conversation.ContextList {
-		messages[i] = openai.ChatCompletionMessage{
+		messages[i] = openAiLib.ChatCompletionMessage{
 			Role:    context.Role,
 			Content: context.Content,
 		}
 	}
 
 	ctx := context.Background()
-	request := openai.ChatCompletionRequest{
-		Model:    openai.GPT3Dot5Turbo,
+	request := openAiLib.ChatCompletionRequest{
+		Model:    openAiLib.GPT3Dot5Turbo,
 		Messages: messages,
 	}
 
@@ -81,6 +83,54 @@ func (chat *Chat) createChatCompletion(conversation *Conversation) (*openai.Chat
 	}
 
 	return &resp.Choices[0].Message, nil
+}
+
+type onData func(content string)
+
+func (chat *Chat) GetStreamResponse(conversationId string, userId string, message string, onData onData) (err error) {
+	conversation, err := chat.store.GetConversation(conversationId)
+
+	if err != nil {
+		return fmt.Errorf("Failed to get conversation with id: %s: %v\n", conversationId, err)
+	}
+
+	if conversation == nil {
+		conversation = createDefaultConversation(conversationId)
+	}
+
+	conversation.AddUserContext(message)
+
+	responseStream, err := chat.createChatCompletionStream(conversation)
+
+	if err != nil {
+		return fmt.Errorf("ChatCompletionStream error: %v\n", err)
+	}
+
+	defer responseStream.Close()
+
+	var fullContent = ""
+
+	for {
+		streamResponse, err := responseStream.Recv()
+
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+
+		content := streamResponse.Choices[0].Delta.Content
+		fullContent += content
+		onData(content)
+	}
+
+	conversation.AddAssistantContent(fullContent)
+
+	chat.store.SetConversation(conversation)
+
+	return nil
 }
 
 func (chat *Chat) GetResponse(conversationId string, userId string, message string) (response string, err error) {

@@ -2,25 +2,25 @@ package discord
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
-	"time"
 
 	"github.com/Mi-lex/dgpt-bot/chat"
 	"github.com/Mi-lex/dgpt-bot/config"
-	"github.com/bwmarrin/discordgo"
+	discordGoLib "github.com/bwmarrin/discordgo"
 )
 
 var DController *Controller
 
 type Controller struct {
 	chat               *chat.Chat
-	sessionClient      *discordgo.Session
-	registeredCommands []*discordgo.ApplicationCommand
+	sessionClient      *discordGoLib.Session
+	registeredCommands []*discordGoLib.ApplicationCommand
 }
 
 func Init(chat *chat.Chat) error {
-	sessionClient, err := discordgo.New("Bot " + config.EnvConfigs.DiscordBotToken)
+	sessionClient, err := discordGoLib.New("Bot " + config.EnvConfigs.DiscordBotToken)
 
 	if err != nil {
 		log.Fatal("error creating Discord session,", err)
@@ -51,9 +51,9 @@ func Init(chat *chat.Chat) error {
 func (controller *Controller) registerInteractions() {
 	log.Println("Registering interaction commands...")
 
-	controller.sessionClient.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	controller.sessionClient.AddHandler(func(s *discordGoLib.Session, i *discordGoLib.InteractionCreate) {
 		switch i.Type {
-		case discordgo.InteractionMessageComponent:
+		case discordGoLib.InteractionMessageComponent:
 			if h, ok := componentsInteractionHandlers[i.MessageComponentData().CustomID]; ok {
 				h(s, i)
 			}
@@ -88,10 +88,10 @@ func createThreadTitle(messageContent string) string {
 	return messageContent[:50] + "..."
 }
 
-var charResponseComponents = []discordgo.MessageComponent{
-	discordgo.ActionsRow{
-		Components: []discordgo.MessageComponent{
-			discordgo.Button{
+var charResponseComponents = []discordGoLib.MessageComponent{
+	discordGoLib.ActionsRow{
+		Components: []discordGoLib.MessageComponent{
+			discordGoLib.Button{
 				CustomID: componentInteractionsEventStopResponse,
 				Label:    "Stop responding",
 			},
@@ -110,7 +110,9 @@ func getMockHttpResponse() io.ReadCloser {
 	return io.NopCloser(buffer)
 }
 
-func (controller *Controller) messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
+var chunkMaxLen = 100
+
+func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discordGoLib.MessageCreate) {
 	// ignore all messages created by the bot itself
 	if m.Author.ID == s.State.User.ID {
 		return
@@ -119,7 +121,7 @@ func (controller *Controller) messageHandler(s *discordgo.Session, m *discordgo.
 	ch, err := s.State.Channel(m.ChannelID)
 
 	if err != nil {
-		log.Printf("Failed to get channel: %v")
+		log.Println("Failed to get channel:", err)
 
 		return
 	}
@@ -128,14 +130,14 @@ func (controller *Controller) messageHandler(s *discordgo.Session, m *discordgo.
 
 	// if its not a thread, then create one
 	if !ch.IsThread() {
-		thread, err := s.MessageThreadStartComplex(m.ChannelID, m.ID, &discordgo.ThreadStart{
+		thread, err := s.MessageThreadStartComplex(m.ChannelID, m.ID, &discordGoLib.ThreadStart{
 			Name:             createThreadTitle(m.Content),
 			Invitable:        false,
 			RateLimitPerUser: 10,
 		})
 
 		if err != nil {
-			log.Printf("Failed to create a thread: %v", err)
+			log.Println("Failed to create a thread:", err)
 
 			return
 		}
@@ -143,112 +145,85 @@ func (controller *Controller) messageHandler(s *discordgo.Session, m *discordgo.
 		threadId = thread.ID
 	}
 
+	var assistantResponseMessage *discordGoLib.Message
+
+	// we send discord messages by chunks
+	// to reduce request amount during chat response
+	var chunk = ""
+	var chatResponse = ""
+
 	s.ChannelTyping(threadId)
-
 	// get response from chat
-	// response, err := controller.chat.GetResponse(threadId, m.Author.ID, m.Content)
+	err = controller.chat.GetStreamResponse(threadId, m.Author.ID, m.Content, func(data string) {
+		chatResponse += data
 
-	// mocked version
-	responseStream := getMockHttpResponse()
+		// if no data left
+		if data == "" {
+			// if it's last message
+			if assistantResponseMessage != nil {
+				// we edit existing one, removing "button" component
+				msgToEdit := discordGoLib.NewMessageEdit(threadId, assistantResponseMessage.ID)
+				msgToEdit.Components = []discordGoLib.MessageComponent{}
+				msgToEdit.SetContent(chatResponse)
+				_, err = s.ChannelMessageEditComplex(msgToEdit)
 
-	var buffer bytes.Buffer
+				if err != nil {
+					log.Println("Failed to edit final message:", err)
+				}
+				// if full response is bigger than chunkMaxLen and it's first response
+			} else if chatResponse != "" {
+				// we chat send simple message
+				assistantResponseMessage, err = s.ChannelMessageSend(threadId, chatResponse)
 
-	var msgToEdit *discordgo.Message
-
-	var first = true
-	// Loop through the response stream and read it sequentially
-	for {
-		chunk := make([]byte, 5)
-
-		n, err := responseStream.Read(chunk)
-
-		if err != nil {
-			if err == io.EOF {
-				break
+				if err != nil {
+					log.Println("Failed to send simple message:", err)
+				}
 			}
-			log.Fatal(err)
+
+			return
 		}
 
-		buffer.Write((chunk[:n]))
+		chunk += data
 
-		if first {
-			first = false
-			log.Print("Creating initial message")
-			// make initial message
-			msgSend := &discordgo.MessageSend{
-				Content:    buffer.String(),
-				Components: charResponseComponents,
+		if len(chunk) >= chunkMaxLen {
+			// first message
+			if chatResponse == chunk {
+				// make initial message
+				msgSend := &discordGoLib.MessageSend{
+					Content:    chatResponse,
+					Components: charResponseComponents,
+				}
+
+				assistantResponseMessage, err = s.ChannelMessageSendComplex(threadId, msgSend)
+
+				if err != nil {
+					log.Println("Failed to create an editable initial message:")
+				}
+			} else {
+				log.Println("Editing the existing message")
+				// edit existing one
+				msgToEdit := discordGoLib.NewMessageEdit(threadId, assistantResponseMessage.ID)
+				msgToEdit.SetContent(chatResponse)
+
+				_, err = s.ChannelMessageEditComplex(msgToEdit)
+
+				if err != nil {
+					log.Println("Failed to edit existing message:", err)
+				}
 			}
 
-			msgToEdit, err = s.ChannelMessageSendComplex(threadId, msgSend)
-
-			if err != nil {
-				log.Printf("Failed to create initial message")
-
-				break
-			}
-		} else {
-			log.Print("Editing existing one message")
-			// edit existing one
-			msgEdit := discordgo.NewMessageEdit(threadId, msgToEdit.ID)
-			msgEdit.SetContent(buffer.String())
-
-			_, err = s.ChannelMessageEditComplex(msgEdit)
-
-			if err != nil {
-				log.Printf("Failed to receive %v chunk of stream", n)
-
-				break
-			}
+			chunk = ""
 		}
-
-		time.Sleep(2000)
-	}
-
-	msgEdit := discordgo.NewMessageEdit(threadId, msgToEdit.ID)
-	msgEdit.Components = []discordgo.MessageComponent{}
-	_, err = s.ChannelMessageEditComplex(msgEdit)
+	})
 
 	if err != nil {
-		log.Printf("Failed to update final message: %v", err)
+		errorMessage := fmt.Errorf("Failed to get chat stream: %v").Error()
 
-		return
-	}
-
-	// while stream is not over write add stopResponse function into controller property
-	// after stream is over stopResponse should be deleted
-	// if err != nil {
-	// 	log.Printf("Failed to get chat response: %v", err)
-
-	// 	return
-	// }
-
-	// if response == "" {
-	// 	log.Print("Empty response")
-
-	// 	return
-	// }
-
-	// time.Sleep(2000)
-
-	// Edit current message on data
-	// msgEdit := discordgo.NewMessageEdit(threadId, messageToEdit.ID)
-	// msgEdit.SetContent("Some Content. Or event more")
-	// msgEdit.Components = []discordgo.MessageComponent{}
-	// _, err = s.ChannelMessageEditComplex(msgEdit)
-
-	if err != nil {
-		// If an error occurred, we failed to send a message to a channel
-		// Some common causes are:
-		// 1. We don't share a server with the user (not possible here).
-		// 2. We opened enough DM channels quickly enough for Discord to
-		//    label us as abusing the endpoint, blocking us from opening
-		//    new ones.
-		log.Println("error creating channel:", err)
 		s.ChannelMessageSend(
 			m.ChannelID,
-			"Something went wrong while sending the message.",
+			errorMessage,
 		)
+
 		return
 	}
 }

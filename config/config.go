@@ -26,7 +26,7 @@ func loadEnvVariables() (config *envConfigs) {
 	var k = koanf.New(".")
 
 	if err := k.Load(file.Provider(".env"), dotenv.Parser()); err != nil {
-		log.Printf("Error loading config: %v", err)
+		log.Println("Error loading config:", err)
 	}
 
 	k.Load(env.Provider("", ".", func(s string) string {

@@ -20,7 +20,7 @@ func main() {
 	err := utils.SetupRedis()
 
 	if err != nil {
-		log.Fatal("error setting up Redis,", err)
+		log.Fatalln("error setting up Redis,", err)
 	}
 
 	openAiClient := openai.NewClient(config.EnvConfigs.OpenApiSecretKey)
@@ -30,7 +30,7 @@ func main() {
 	err = discord.Init(chat)
 
 	if err != nil {
-		log.Fatal("error creating Discord session,", err)
+		log.Fatalln("error creating Discord session,", err)
 
 		return
 	}
