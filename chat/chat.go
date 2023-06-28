@@ -85,7 +85,7 @@ func (chat *Chat) createChatCompletion(conversation *Conversation) (*openAiLib.C
 	return &resp.Choices[0].Message, nil
 }
 
-type onData func(content string)
+type onData func(content string, stop func())
 
 func (chat *Chat) GetStreamResponse(conversationId string, userId string, message string, onData onData) (err error) {
 	conversation, err := chat.store.GetConversation(conversationId)
@@ -123,7 +123,10 @@ func (chat *Chat) GetStreamResponse(conversationId string, userId string, messag
 
 		content := streamResponse.Choices[0].Delta.Content
 		fullContent += content
-		onData(content)
+
+		onData(content, func() {
+			responseStream.Close()
+		})
 	}
 
 	conversation.AddAssistantContent(fullContent)
