@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 
 	"github.com/Mi-lex/dgpt-bot/utils"
 	openAiLib "github.com/sashabaranov/go-openai"
@@ -86,6 +87,39 @@ func (chat *Chat) createChatCompletion(conversation *Conversation) (*openAiLib.C
 }
 
 type onData func(content string, stop func())
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func RandStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
+func (chat *Chat) MockStreamResponse(conversationId string, userId string, message string, onData onData) (err error) {
+	var fakeTextLen = 2100
+
+	var msg = RandStringRunes(fakeTextLen)
+
+	dataSize := 10
+
+	for i := 0; i < fakeTextLen; i += dataSize {
+		if i+dataSize > fakeTextLen {
+			dataSize = fakeTextLen - i
+		}
+
+		fakeText := msg[i : i+dataSize]
+
+		onData(fakeText, func() {})
+	}
+
+	// we finish with empty message just like chatgpt does
+	onData("", func() {})
+
+	return nil
+}
 
 func (chat *Chat) GetStreamResponse(conversationId string, userId string, message string, onData onData) (err error) {
 	conversation, err := chat.store.GetConversation(conversationId)

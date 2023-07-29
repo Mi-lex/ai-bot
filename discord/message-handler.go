@@ -26,7 +26,9 @@ var charResponseComponents = []discordGoLib.MessageComponent{
 	},
 }
 
+// chunk size should be smaller than discord message max len
 var chunkMaxLen = 100
+var discordMessageMaxLen = 2000
 
 var currentChatResponses = make(map[string]func())
 
@@ -78,15 +80,32 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 
 	var chatResponseMessage *discordGoLib.Message
 
-	// we send discord messages by chunks
-	// to reduce request amount during chat response
+	/*
+	* we send discord messages by chunks
+	* to reduce request amount during chat response
+	 */
 	var chunk = ""
 	var chatResponse = ""
 
 	s.ChannelTyping(threadId)
 	// get response from chat
-	err = controller.chat.GetStreamResponse(threadId, m.Author.ID, m.Content, func(data string, stop func()) {
-		chatResponse += data
+	err = controller.chat.MockStreamResponse(threadId, m.Author.ID, m.Content, func(data string, stop func()) {
+		// if response is bigger than discord message max len
+		if len(data)+len(chatResponse) >= discordMessageMaxLen {
+			// assuming that chunk is always smaller than discordMessageMaxLen
+			chatResponse = chunk + data
+
+			// remove button for previous msg
+			msgToEdit := discordGoLib.NewMessageEdit(threadId, chatResponseMessage.ID)
+			msgToEdit.Components = []discordGoLib.MessageComponent{}
+			_, err = s.ChannelMessageEditComplex(msgToEdit)
+
+			if err != nil {
+				log.Println("Failed to edit previous message:", err)
+			}
+		} else {
+			chatResponse += data
+		}
 
 		// if no data left
 		if data == "" {
@@ -95,7 +114,6 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 				// we edit existing one, removing "button" component
 				msgToEdit := discordGoLib.NewMessageEdit(threadId, chatResponseMessage.ID)
 				msgToEdit.Components = []discordGoLib.MessageComponent{}
-				msgToEdit.SetContent(chatResponse)
 				_, err = s.ChannelMessageEditComplex(msgToEdit)
 
 				if err != nil {
