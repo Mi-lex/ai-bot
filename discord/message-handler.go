@@ -89,7 +89,7 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 
 	s.ChannelTyping(threadId)
 	// get response from chat
-	err = controller.chat.MockStreamResponse(threadId, m.Author.ID, m.Content, func(data string, stop func()) {
+	err = controller.chat.GetStreamResponse(threadId, m.Author.ID, m.Content, func(data string, stop func()) {
 		// if response is bigger than discord message max len
 		if len(data)+len(chatResponse) >= discordMessageMaxLen {
 			// assuming that chunk is always smaller than discordMessageMaxLen
