@@ -4,7 +4,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var componentInteractionsEventStopResponse = "stop_response"
+const componentInteractionsEventStopResponse = "stop_response"
 
 var componentsInteractionHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 	componentInteractionsEventStopResponse: func(s *discordgo.Session, i *discordgo.InteractionCreate) {

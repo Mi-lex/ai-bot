@@ -27,8 +27,8 @@ var charResponseComponents = []discordGoLib.MessageComponent{
 }
 
 // chunk size should be smaller than discord message max len
-var chunkMaxLen = 100
-var discordMessageMaxLen = 2000
+const chunkMaxLen = 100
+const discordMessageMaxLen = 2000
 
 var currentChatResponses = make(map[string]func())
 

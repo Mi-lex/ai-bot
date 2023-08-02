@@ -7,7 +7,7 @@ import (
 	"github.com/Mi-lex/dgpt-bot/utils"
 )
 
-var conversationKeyPrefix = "conversation"
+const conversationKeyPrefix = "conversation"
 
 func getStoreKey(id string) string {
 	return conversationKeyPrefix + ":" + id
