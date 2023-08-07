@@ -114,6 +114,7 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 				// we edit existing one, removing "button" component
 				msgToEdit := discordGoLib.NewMessageEdit(threadId, chatResponseMessage.ID)
 				msgToEdit.Components = []discordGoLib.MessageComponent{}
+				msgToEdit.SetContent(chatResponse + chunk)
 				_, err = s.ChannelMessageEditComplex(msgToEdit)
 
 				if err != nil {
