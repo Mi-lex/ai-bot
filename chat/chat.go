@@ -152,6 +152,10 @@ func (chat *Chat) GetStreamResponse(conversationId string, userId string, messag
 		}
 
 		if err != nil {
+			if err.Error() == "http2: response body closed" {
+				return nil
+			}
+
 			return err
 		}
 
