@@ -32,21 +32,21 @@ const discordMessageMaxLen = 2000
 
 var currentChatResponses = make(map[string]func())
 
-func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discordGoLib.MessageCreate) {
+func (controller *Controller) messageHandler(session *discordGoLib.Session, message *discordGoLib.MessageCreate) {
 	// ignore all messages created by the bot itself
-	if m.Author.ID == s.State.User.ID {
+	if message.Author.ID == session.State.User.ID {
 		return
 	}
 
-	ch, err := s.State.Channel(m.ChannelID)
+	channel, err := session.State.Channel(message.ChannelID)
 
 	if err != nil {
-		log.Println("Failed to get a channel %v:%v", m.ChannelID, err)
+		handleDiscordChatError(session, message.ChannelID, fmt.Sprintf("Failed to get a channel %v:%v", message.ChannelID, err))
 
 		return
 	}
 
-	threadId := m.ChannelID
+	threadId := message.ChannelID
 
 	_, isResponding := currentChatResponses[threadId]
 
@@ -56,20 +56,14 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 	}
 
 	// if its not a thread, then create one
-	if !ch.IsThread() {
-		thread, err := s.MessageThreadStartComplex(m.ChannelID, m.ID, &discordGoLib.ThreadStart{
-			Name:             createThreadTitle(m.Content),
-			Invitable:        false,
-			RateLimitPerUser: 10,
-		})
+	if !channel.IsThread() {
+		threadId, err = createThread(session, message)
 
 		if err != nil {
-			log.Println("Failed to create a thread:", err)
+			handleDiscordChatError(session, message.ChannelID, fmt.Sprintf("Failed to create a thread: %v", err))
 
 			return
 		}
-
-		threadId = thread.ID
 	}
 
 	// assign empty function for now
@@ -78,6 +72,24 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 	// make sure we always remove response
 	defer delete(currentChatResponses, threadId)
 
+	controller.writeAnswer(session, threadId, message)
+}
+
+func createThread(session *discordGoLib.Session, message *discordGoLib.MessageCreate) (string, error) {
+	thread, err := session.MessageThreadStartComplex(message.ChannelID, message.ID, &discordGoLib.ThreadStart{
+		Name:             createThreadTitle(message.Content),
+		Invitable:        false,
+		RateLimitPerUser: 10,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return thread.ID, nil
+}
+
+func (controller *Controller) writeAnswer(session *discordGoLib.Session, threadId string, message *discordGoLib.MessageCreate) {
 	var chatResponseMessage *discordGoLib.Message
 
 	/*
@@ -86,10 +98,11 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 	 */
 	var chunk = ""
 	var chatResponse = ""
+	var err error = nil
 
-	s.ChannelTyping(threadId)
+	session.ChannelTyping(threadId)
 	// get response from chat
-	err = controller.chat.GetStreamResponse(threadId, m.Author.ID, m.Content, func(data string, stop func()) {
+	err = controller.chat.GetStreamResponse(threadId, message.Author.ID, message.Content, func(data string, stop func()) {
 		// if response is bigger than discord message max len
 		if len(data)+len(chatResponse) >= discordMessageMaxLen {
 			// assuming that chunk is always smaller than discordMessageMaxLen
@@ -98,10 +111,10 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 			// remove button for previous msg
 			msgToEdit := discordGoLib.NewMessageEdit(threadId, chatResponseMessage.ID)
 			msgToEdit.Components = []discordGoLib.MessageComponent{}
-			_, err = s.ChannelMessageEditComplex(msgToEdit)
+			_, err = session.ChannelMessageEditComplex(msgToEdit)
 
 			if err != nil {
-				log.Println("Failed to edit previous message:", err)
+				handleDiscordChatError(session, threadId, fmt.Sprintf("Failed to edit previous message: %v", err))
 			}
 		} else {
 			chatResponse += data
@@ -115,18 +128,18 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 				msgToEdit := discordGoLib.NewMessageEdit(threadId, chatResponseMessage.ID)
 				msgToEdit.Components = []discordGoLib.MessageComponent{}
 				msgToEdit.SetContent(chatResponse + chunk)
-				_, err = s.ChannelMessageEditComplex(msgToEdit)
+				_, err := session.ChannelMessageEditComplex(msgToEdit)
 
 				if err != nil {
-					log.Println("Failed to edit final message:", err)
+					handleDiscordChatError(session, threadId, fmt.Sprintf("Failed to edit final message: %v", err))
 				}
 				// if full response is bigger than chunkMaxLen and it's first response
 			} else if chatResponse != "" {
 				// we chat send simple message
-				chatResponseMessage, err = s.ChannelMessageSend(threadId, chatResponse)
+				chatResponseMessage, err = session.ChannelMessageSend(threadId, chatResponse)
 
 				if err != nil {
-					log.Println("Failed to send simple message:", err)
+					handleDiscordChatError(session, threadId, fmt.Sprintf("Failed to send simple message: %v", err))
 				}
 			}
 
@@ -146,20 +159,20 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 					Components: charResponseComponents,
 				}
 
-				chatResponseMessage, err = s.ChannelMessageSendComplex(threadId, msgSend)
+				chatResponseMessage, err = session.ChannelMessageSendComplex(threadId, msgSend)
 
 				if err != nil {
-					log.Println("Failed to create an initial message:", err)
+					handleDiscordChatError(session, threadId, fmt.Sprintf("Failed to create an initial message: %v", err))
 				}
 			} else {
 				// edit existing one
 				msgToEdit := discordGoLib.NewMessageEdit(threadId, chatResponseMessage.ID)
 				msgToEdit.SetContent(chatResponse)
 
-				_, err = s.ChannelMessageEditComplex(msgToEdit)
+				_, err := session.ChannelMessageEditComplex(msgToEdit)
 
 				if err != nil {
-					log.Println("Failed to edit existing message:", err)
+					handleDiscordChatError(session, threadId, fmt.Sprintf("Failed to edit existing message: %v", err))
 				}
 			}
 
@@ -168,13 +181,14 @@ func (controller *Controller) messageHandler(s *discordGoLib.Session, m *discord
 	})
 
 	if err != nil {
-		errorMessage := fmt.Errorf("Failed to get chat stream: %v").Error()
-
-		s.ChannelMessageSend(
-			m.ChannelID,
-			errorMessage,
-		)
-
-		return
+		handleDiscordChatError(session, message.ChannelID, fmt.Sprintf("Failed to get chat stream: %v", err))
 	}
+}
+
+type onData func(content string, stop func())
+
+func handleDiscordChatError(session *discordGoLib.Session, channelId string, errorMessage string) {
+	log.Println(errorMessage)
+
+	session.ChannelMessageSend(channelId, errorMessage)
 }
