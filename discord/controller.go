@@ -8,6 +8,7 @@ import (
 	discordGoLib "github.com/bwmarrin/discordgo"
 )
 
+// TODO there is no need in this variable
 var DController *Controller
 
 type Controller struct {
