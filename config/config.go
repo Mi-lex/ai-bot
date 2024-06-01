@@ -17,6 +17,7 @@ func InitEnvConfigs() {
 
 type envConfigs struct {
 	DiscordBotToken  string
+	DiscordGuildId   string
 	OpenApiSecretKey string
 	RedisAddr        string
 	RedisPass        string
@@ -35,6 +36,7 @@ func loadEnvVariables() (config *envConfigs) {
 
 	return &envConfigs{
 		DiscordBotToken:  k.String("DISCORD_BOT_TOKEN"),
+		DiscordGuildId:   k.String("DISCORD_GUILD_ID"),
 		OpenApiSecretKey: k.String("OPENAI_SECRET_KEY"),
 		RedisAddr:        k.String("REDIS_ADDR"),
 		RedisPass:        k.String("REDIS_PASS"),
