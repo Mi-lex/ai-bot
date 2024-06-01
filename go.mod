@@ -10,7 +10,7 @@ require (
 	github.com/knadh/koanf/providers/file v0.1.0
 	github.com/knadh/koanf/v2 v2.0.1
 	github.com/nitishm/go-rejson/v4 v4.1.0
-	github.com/sashabaranov/go-openai v1.10.1
+	github.com/sashabaranov/go-openai v1.24.1
 )
 
 require (
