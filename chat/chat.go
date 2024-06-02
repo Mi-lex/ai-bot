@@ -41,8 +41,9 @@ func (chat *Chat) createChatCompletionStream(conversation *Conversation) (*openA
 	}
 
 	ctx := context.Background()
+
 	request := openAiLib.ChatCompletionRequest{
-		Model:    openAiLib.GPT3Dot5Turbo,
+		Model:    conversation.Model,
 		Messages: messages,
 		Stream:   true,
 	}
@@ -70,7 +71,7 @@ func (chat *Chat) createChatCompletion(conversation *Conversation) (*openAiLib.C
 
 	ctx := context.Background()
 	request := openAiLib.ChatCompletionRequest{
-		Model:    openAiLib.GPT3Dot5Turbo,
+		Model:    conversation.Model,
 		Messages: messages,
 	}
 

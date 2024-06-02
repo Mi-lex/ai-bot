@@ -40,10 +40,31 @@ func Init(chat *chat.Chat) error {
 		return err
 	}
 
-	// DController.registerCommands()
+	DController.registerCommands()
 	DController.registerInteractions()
 
 	return nil
+}
+
+func (controller *Controller) registerCommands() {
+	log.Println("Registering commands...")
+
+	controller.sessionClient.AddHandler(func(s *discordGoLib.Session, i *discordGoLib.InteractionCreate) {
+		switch i.Type {
+		case discordGoLib.InteractionApplicationCommand:
+			if h, ok := applicationCommandsHandlers[i.ApplicationCommandData().Name]; ok {
+				h(s, i)
+			}
+		}
+	})
+
+	cmd, err := controller.sessionClient.ApplicationCommandCreate(controller.sessionClient.State.User.ID, config.EnvConfigs.DiscordGuildId, createSetModelCommand(config.EnvConfigs.OpenApiAvailableModels))
+
+	if err != nil {
+		log.Panicf("Cannot create '%v' command: %v", "Set model", err)
+	}
+
+	controller.registeredCommands = append(controller.registeredCommands, cmd)
 }
 
 func (controller *Controller) registerInteractions() {
@@ -63,7 +84,7 @@ func (controller *Controller) unregisterCommands() {
 	log.Println("Removing commands...")
 
 	for _, registeredCommand := range controller.registeredCommands {
-		err := controller.sessionClient.ApplicationCommandDelete(controller.sessionClient.State.User.ID, "", registeredCommand.ID)
+		err := controller.sessionClient.ApplicationCommandDelete(controller.sessionClient.State.User.ID, config.EnvConfigs.DiscordGuildId, registeredCommand.ID)
 		if err != nil {
 			log.Panicf("Cannot delete '%v' command: %v", registeredCommand.Name, err)
 		}
