@@ -6,6 +6,7 @@ require (
 	github.com/bwmarrin/discordgo v0.27.2-0.20240104191117-afc57886f91a
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/knadh/koanf/parsers/dotenv v0.1.0
+	github.com/knadh/koanf/providers/confmap v0.1.0
 	github.com/knadh/koanf/providers/env v0.1.0
 	github.com/knadh/koanf/providers/file v0.1.0
 	github.com/knadh/koanf/v2 v2.0.1
