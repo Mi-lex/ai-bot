@@ -1,8 +1,6 @@
 package discord
 
 import (
-	"fmt"
-
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -68,22 +66,28 @@ func createSetModelCommand(models []string) *discordgo.ApplicationCommand {
 	}
 }
 
-var applicationCommandsHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-	/**
-	 * TODO! add actual handler
-	 * saving model into the store
-	 **/
-	SET_MODEL_COMMAND: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+type SetModel func(model string) error
+
+func createSetModelHandler(setModelFunc SetModel) func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		modelOption := i.ApplicationCommandData().Options[0]
+
+		modelVal := modelOption.StringValue()
+
+		err := setModelFunc(modelVal)
+
+		msg := "Model set: " + modelVal
+
+		if err != nil {
+			msg = err.Error()
+		}
 
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			// Ignore type for now, they will be discussed in "responses"
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf(
-					modelOption.StringValue(),
-				),
+				Content: msg,
 			},
 		})
-	},
+	}
 }

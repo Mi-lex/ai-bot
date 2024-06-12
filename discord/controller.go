@@ -49,11 +49,13 @@ func Init(chat *chat.Chat) error {
 func (controller *Controller) registerCommands() {
 	log.Println("Registering commands...")
 
+	setModeHandler := createSetModelHandler(controller.chat.SetModel)
+
 	controller.sessionClient.AddHandler(func(s *discordGoLib.Session, i *discordGoLib.InteractionCreate) {
 		switch i.Type {
 		case discordGoLib.InteractionApplicationCommand:
-			if h, ok := applicationCommandsHandlers[i.ApplicationCommandData().Name]; ok {
-				h(s, i)
+			if i.ApplicationCommandData().Name == SET_MODEL_COMMAND {
+				setModeHandler(s, i)
 			}
 		}
 	})
