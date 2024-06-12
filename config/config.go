@@ -21,6 +21,7 @@ type envConfigs struct {
 	DiscordGuildId         string
 	OpenApiSecretKey       string
 	OpenApiAvailableModels []string
+	OpenAiDefaultModel     string
 	RedisAddr              string
 	RedisPass              string
 }
@@ -39,6 +40,7 @@ var DEFAULT_OPENAI_MODELS = []string{OpenApiGpt3_5Turbo, OpenApiGpt3_5Turbo16k, 
 
 var defaultConfigs = map[string]interface{}{
 	"OPENAI_AVAILABLE_MODELS": DEFAULT_OPENAI_MODELS,
+	"OPENAI_DEFAULT_MODEL":    OpenApiGpt3_5Turbo,
 }
 
 func loadEnvVariables() (config *envConfigs) {
@@ -59,6 +61,7 @@ func loadEnvVariables() (config *envConfigs) {
 		DiscordGuildId:         k.String("DISCORD_GUILD_ID"),
 		OpenApiSecretKey:       k.String("OPENAI_SECRET_KEY"),
 		OpenApiAvailableModels: k.Strings("OPENAI_AVAILABLE_MODELS"),
+		OpenAiDefaultModel:     k.String("OPENAI_DEFAULT_MODEL"),
 		RedisAddr:              k.String("REDIS_ADDR"),
 		RedisPass:              k.String("REDIS_PASS"),
 	}
