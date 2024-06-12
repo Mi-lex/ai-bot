@@ -8,6 +8,7 @@ import (
 )
 
 const conversationKeyPrefix = "conversation"
+const modelKey = "modelName"
 
 func getStoreKey(id string) string {
 	return conversationKeyPrefix + ":" + id
@@ -15,6 +16,26 @@ func getStoreKey(id string) string {
 
 type Store struct {
 	redis *utils.Redis
+}
+
+func (s *Store) SetModel(model string) error {
+	err := s.redis.Set(modelKey, model)
+
+	if err != nil {
+		return fmt.Errorf("Failed to set model %s, %w", model, err)
+	}
+
+	return nil
+}
+
+func (s *Store) GetModel() (string, error) {
+	result, err := s.redis.Get(modelKey)
+
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
 }
 
 func (s *Store) GetConversation(id string) (conversation *Conversation, err error) {

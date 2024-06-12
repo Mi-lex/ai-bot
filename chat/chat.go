@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 
+	"github.com/Mi-lex/dgpt-bot/config"
 	"github.com/Mi-lex/dgpt-bot/utils"
 	openAiLib "github.com/sashabaranov/go-openai"
 )
@@ -26,8 +27,32 @@ func NewChat(openAiCLient *openAiLib.Client) *Chat {
 	}
 }
 
-func createDefaultConversation(id string) *Conversation {
-	return NewConversation(id, "gpt-3.5-turbo", 0.2)
+func createDefaultConversation(id string, model string) *Conversation {
+	return NewConversation(id, model, 0.2)
+}
+
+func (chat *Chat) SetModel(model string) error {
+	err := chat.store.SetModel(model)
+
+	if err != nil {
+		log.Println("Failed to set chat model: %w", err)
+
+		return fmt.Errorf("Failed to set chat model. Previous model will be used")
+	}
+
+	return nil
+}
+
+func (chat *Chat) GetModel() string {
+	result, err := chat.store.GetModel()
+
+	if err != nil {
+		log.Println("Failed to retrieve chat model: %w", err)
+
+		return config.EnvConfigs.OpenAiDefaultModel
+	}
+
+	return result
 }
 
 func (chat *Chat) createChatCompletionStream(conversation *Conversation) (*openAiLib.ChatCompletionStream, error) {
@@ -41,8 +66,9 @@ func (chat *Chat) createChatCompletionStream(conversation *Conversation) (*openA
 	}
 
 	ctx := context.Background()
+
 	request := openAiLib.ChatCompletionRequest{
-		Model:    openAiLib.GPT3Dot5Turbo,
+		Model:    conversation.Model,
 		Messages: messages,
 		Stream:   true,
 	}
@@ -70,7 +96,7 @@ func (chat *Chat) createChatCompletion(conversation *Conversation) (*openAiLib.C
 
 	ctx := context.Background()
 	request := openAiLib.ChatCompletionRequest{
-		Model:    openAiLib.GPT3Dot5Turbo,
+		Model:    conversation.Model,
 		Messages: messages,
 	}
 
@@ -129,7 +155,9 @@ func (chat *Chat) GetStreamResponse(conversationId string, userId string, messag
 	}
 
 	if conversation == nil {
-		conversation = createDefaultConversation(conversationId)
+		model := chat.GetModel()
+
+		conversation = createDefaultConversation(conversationId, model)
 	}
 
 	conversation.AddUserContext(message)
@@ -182,7 +210,9 @@ func (chat *Chat) GetResponse(conversationId string, userId string, message stri
 	}
 
 	if conversation == nil {
-		conversation = createDefaultConversation(conversationId)
+		model := chat.GetModel()
+
+		conversation = createDefaultConversation(conversationId, model)
 	}
 
 	conversation.AddUserContext(message)

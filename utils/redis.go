@@ -3,6 +3,8 @@ package utils
 import (
 	"fmt"
 
+	"context"
+
 	"github.com/Mi-lex/dgpt-bot/config"
 	redis "github.com/go-redis/redis/v8"
 	"github.com/nitishm/go-rejson/v4"
@@ -11,6 +13,24 @@ import (
 type Redis struct {
 	client     *redis.Client
 	jsonClient *rejson.Handler
+}
+
+var redisCtx = context.Background()
+
+func (r *Redis) Set(key string, value string) error {
+	err := r.client.Set(redisCtx, key, value, 0).Err()
+
+	return err
+}
+
+func (r *Redis) Get(key string) (string, error) {
+	result, err := r.client.Get(redisCtx, key).Result()
+
+	if err != nil {
+		return "", fmt.Errorf("Failed to get value by key %s, %w", key, err)
+	}
+
+	return result, nil
 }
 
 func (r *Redis) ToBytes(jsonStr string) []byte {

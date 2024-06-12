@@ -13,17 +13,6 @@ type ResponseMessage struct {
 	session        *discordGoLib.Session
 }
 
-var charResponseComponents = []discordGoLib.MessageComponent{
-	discordGoLib.ActionsRow{
-		Components: []discordGoLib.MessageComponent{
-			discordGoLib.Button{
-				CustomID: componentInteractionsEventStopResponse,
-				Label:    "Stop responding",
-			},
-		},
-	},
-}
-
 const maxMessageLen = 2000
 
 func NewResponseMessage(session *discordGoLib.Session, threadId string) *ResponseMessage {
@@ -106,7 +95,7 @@ func (responseMessage *ResponseMessage) Send(content string) error {
 		// otherwise we create new one
 		msgToSend := &discordGoLib.MessageSend{
 			Content:    content,
-			Components: charResponseComponents,
+			Components: chatResponseComponents,
 		}
 
 		responseMessage.discordMessage, err = responseMessage.session.ChannelMessageSendComplex(responseMessage.threadId, msgToSend)
