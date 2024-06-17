@@ -81,6 +81,7 @@ func (responseMessage *ResponseMessage) Finalize(content string) error {
 	}
 
 	responseMessage.discordMessage = nil
+	responseMessage.content = ""
 
 	return nil
 }
