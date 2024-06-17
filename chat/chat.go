@@ -125,11 +125,11 @@ func RandStringRunes(n int) string {
 }
 
 func (chat *Chat) MockStreamResponse(conversationId string, userId string, message string, onData onData) (err error) {
-	var fakeTextLen = 2100
+	var fakeTextLen = 2400
 
 	var msg = RandStringRunes(fakeTextLen)
 
-	dataSize := 10
+	dataSize := 12
 
 	for i := 0; i < fakeTextLen; i += dataSize {
 		if i+dataSize > fakeTextLen {
