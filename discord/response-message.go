@@ -24,7 +24,7 @@ func NewResponseMessage(session *discordGoLib.Session, threadId string) *Respons
 
 func (responseMessage *ResponseMessage) getCurrentContent() string {
 	if responseMessage.discordMessage != nil {
-		return responseMessage.discordMessage.Content
+		return responseMessage.content
 	}
 
 	return ""
